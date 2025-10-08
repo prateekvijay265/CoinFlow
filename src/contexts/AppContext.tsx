@@ -1,105 +1,185 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Transaction, Budget, User, demoTransactions, demoBudgets, demoUser } from '@/lib/demoData';
+import { Transaction, Budget, User } from '@/lib/demoData';
+import { supabase } from '@/integrations/supabase/client';
+import type { Session } from '@supabase/supabase-js';
 
 interface AppContextType {
   user: User | null;
+  session: Session | null;
   transactions: Transaction[];
   budgets: Budget[];
   isAuthenticated: boolean;
-  login: (email: string, password: string) => boolean;
-  signup: (username: string, email: string, password: string) => void;
-  logout: () => void;
-  loadDemoData: () => void;
-  addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
-  addBudget: (budget: Omit<Budget, 'id' | 'spent'>) => void;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (username: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  refreshData: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const login = (email: string, password: string): boolean => {
-    if (email === demoUser.email && password === demoUser.password) {
-      setUser(demoUser);
-      setIsAuthenticated(true);
-      return true;
+  const fetchUserData = async (userId: string) => {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (profile) {
+      setUser({
+        username: profile.username,
+        email: profile.email,
+        password: ''
+      });
     }
-    
-    const storedUser = localStorage.getItem('coinflowUser');
-    if (storedUser) {
-      const parsedUser: User = JSON.parse(storedUser);
-      if (parsedUser.email === email && parsedUser.password === password) {
-        setUser(parsedUser);
-        setIsAuthenticated(true);
-        return true;
+  };
+
+  const fetchTransactions = async (userId: string) => {
+    const { data } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('date', { ascending: false });
+
+    if (data) {
+      setTransactions(data.map(t => ({
+        id: t.id,
+        amount: Number(t.amount),
+        description: t.description,
+        category: t.category,
+        type: t.type as 'income' | 'expense',
+        date: t.date
+      })));
+    }
+  };
+
+  const fetchBudgets = async (userId: string) => {
+    const { data } = await supabase
+      .from('budgets')
+      .select('*')
+      .eq('user_id', userId);
+
+    if (data) {
+      setBudgets(data.map(b => ({
+        id: b.id,
+        category: b.category,
+        limit: Number(b.limit_amount),
+        spent: Number(b.spent),
+        period: b.period
+      })));
+    }
+  };
+
+  const refreshData = async () => {
+    if (session?.user) {
+      await Promise.all([
+        fetchUserData(session.user.id),
+        fetchTransactions(session.user.id),
+        fetchBudgets(session.user.id)
+      ]);
+    }
+  };
+
+  useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        setSession(currentSession);
+        setIsAuthenticated(!!currentSession);
+        
+        if (currentSession?.user) {
+          setTimeout(() => {
+            fetchUserData(currentSession.user.id);
+            fetchTransactions(currentSession.user.id);
+            fetchBudgets(currentSession.user.id);
+          }, 0);
+        } else {
+          setUser(null);
+          setTransactions([]);
+          setBudgets([]);
+        }
+        setLoading(false);
       }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setIsAuthenticated(!!currentSession);
+      
+      if (currentSession?.user) {
+        fetchUserData(currentSession.user.id);
+        fetchTransactions(currentSession.user.id);
+        fetchBudgets(currentSession.user.id);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
     }
-    return false;
+
+    return { success: true };
   };
 
-  const signup = (username: string, email: string, password: string) => {
-    const newUser: User = { username, email, password };
-    localStorage.setItem('coinflowUser', JSON.stringify(newUser));
-    setUser(newUser);
-    setIsAuthenticated(true);
+  const signup = async (username: string, email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          username
+        },
+        emailRedirectTo: `${window.location.origin}/`
+      }
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
+    setSession(null);
     setIsAuthenticated(false);
     setTransactions([]);
     setBudgets([]);
-  };
-
-  const loadDemoData = () => {
-    setTransactions(demoTransactions);
-    setBudgets(demoBudgets);
-    setUser(demoUser);
-    setIsAuthenticated(true);
-  };
-
-  const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
-    const newTransaction: Transaction = {
-      ...transaction,
-      id: Date.now().toString(),
-    };
-    setTransactions(prev => [newTransaction, ...prev]);
-    
-    if (transaction.type === 'expense') {
-      setBudgets(prev => prev.map(budget => 
-        budget.category === transaction.category
-          ? { ...budget, spent: budget.spent + transaction.amount }
-          : budget
-      ));
-    }
-  };
-
-  const addBudget = (budget: Omit<Budget, 'id' | 'spent'>) => {
-    const newBudget: Budget = {
-      ...budget,
-      id: Date.now().toString(),
-      spent: 0,
-    };
-    setBudgets(prev => [...prev, newBudget]);
   };
 
   return (
     <AppContext.Provider
       value={{
         user,
+        session,
         transactions,
         budgets,
         isAuthenticated,
+        loading,
         login,
         signup,
         logout,
-        loadDemoData,
-        addTransaction,
-        addBudget,
+        refreshData,
       }}
     >
       {children}

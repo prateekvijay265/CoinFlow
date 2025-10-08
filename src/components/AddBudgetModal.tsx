@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { categoryIcons } from '@/lib/demoData';
 import { useToast } from '@/hooks/use-toast';
+import { useBudgets } from '@/hooks/useBudgets';
 
 interface AddBudgetModalProps {
   isOpen: boolean;
@@ -14,7 +15,8 @@ interface AddBudgetModalProps {
 }
 
 const AddBudgetModal = ({ isOpen, onClose }: AddBudgetModalProps) => {
-  const { addBudget, budgets } = useApp();
+  const { budgets } = useApp();
+  const { addBudget } = useBudgets();
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     category: '',
@@ -26,7 +28,7 @@ const AddBudgetModal = ({ isOpen, onClose }: AddBudgetModalProps) => {
     cat => !budgets.some(b => b.category === cat)
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.category || !formData.limit) {
@@ -38,14 +40,10 @@ const AddBudgetModal = ({ isOpen, onClose }: AddBudgetModalProps) => {
       return;
     }
 
-    addBudget({
+    await addBudget({
       category: formData.category,
       limit: parseFloat(formData.limit),
-    });
-
-    toast({
-      title: 'Success!',
-      description: 'Budget created successfully',
+      period: 'monthly',
     });
 
     setFormData({

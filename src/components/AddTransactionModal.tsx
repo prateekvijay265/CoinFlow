@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useApp } from '@/contexts/AppContext';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { categoryIcons } from '@/lib/demoData';
 import { useToast } from '@/hooks/use-toast';
+import { useTransactions } from '@/hooks/useTransactions';
 
 interface AddTransactionModalProps {
   isOpen: boolean;
@@ -15,7 +15,7 @@ interface AddTransactionModalProps {
 }
 
 const AddTransactionModal = ({ isOpen, onClose }: AddTransactionModalProps) => {
-  const { addTransaction } = useApp();
+  const { addTransaction } = useTransactions();
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     amount: '',
@@ -31,7 +31,7 @@ const AddTransactionModal = ({ isOpen, onClose }: AddTransactionModalProps) => {
   
   const availableCategories = formData.type === 'expense' ? expenseCategories : incomeCategories;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.amount || !formData.description || !formData.category) {
@@ -43,17 +43,12 @@ const AddTransactionModal = ({ isOpen, onClose }: AddTransactionModalProps) => {
       return;
     }
 
-    addTransaction({
+    await addTransaction({
       type: formData.type,
       amount: parseFloat(formData.amount),
       description: formData.description,
       category: formData.category,
       date: formData.date,
-    });
-
-    toast({
-      title: 'Success!',
-      description: `${formData.type === 'income' ? 'Income' : 'Expense'} added successfully`,
     });
 
     setFormData({

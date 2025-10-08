@@ -5,16 +5,16 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useApp } from '@/contexts/AppContext';
-import { DollarSign, Sparkles } from 'lucide-react';
+import { DollarSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const Auth = () => {
-  const { login, signup, loadDemoData } = useApp();
+  const { login, signup } = useApp();
   const { toast } = useToast();
   const [signupData, setSignupData] = useState({ username: '', email: '', password: '' });
   const [loginData, setLoginData] = useState({ email: '', password: '' });
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!signupData.username || !signupData.email || !signupData.password) {
       toast({
@@ -24,20 +24,29 @@ const Auth = () => {
       });
       return;
     }
-    signup(signupData.username, signupData.email, signupData.password);
-    toast({
-      title: 'Success!',
-      description: 'Account created successfully',
-    });
-  };
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    const success = login(loginData.email, loginData.password);
-    if (!success) {
+    
+    const result = await signup(signupData.username, signupData.email, signupData.password);
+    if (result.success) {
+      toast({
+        title: 'Success!',
+        description: 'Account created successfully',
+      });
+    } else {
       toast({
         title: 'Error',
-        description: 'Invalid email or password',
+        description: result.error || 'Failed to create account',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await login(loginData.email, loginData.password);
+    if (!result.success) {
+      toast({
+        title: 'Error',
+        description: result.error || 'Invalid email or password',
         variant: 'destructive',
       });
     } else {
@@ -46,14 +55,6 @@ const Auth = () => {
         description: 'Logged in successfully',
       });
     }
-  };
-
-  const handleDemoMode = () => {
-    loadDemoData();
-    toast({
-      title: 'Demo Mode Activated',
-      description: 'Exploring with sample data',
-    });
   };
 
   return (
@@ -146,25 +147,6 @@ const Auth = () => {
               </TabsContent>
             </Tabs>
           </CardContent>
-          <CardFooter className="flex flex-col">
-            <div className="relative w-full mb-4">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or</span>
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={handleDemoMode}
-            >
-              <Sparkles className="mr-2 h-4 w-4" />
-              Continue with Demo Data
-            </Button>
-          </CardFooter>
         </Card>
       </div>
     </div>
