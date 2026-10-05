@@ -1,7 +1,7 @@
 <!-- ═══════════════ ANIMATED HEADER BANNER ═══════════════ -->
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=240&section=header&text=Welcome%20to%20My%20Project&fontSize=52&fontColor=ffffff&animation=fadeIn&fontAlignY=36&desc=Built%20with%20Lovable%20%E2%80%A2%20Vite%20%E2%80%A2%20React%20%E2%80%A2%20TypeScript&descSize=18&descAlignY=58" width="100%" alt="Header banner" />
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=240&section=header&text=COIN%20FLOW%20&fontSize=52&fontColor=ffffff&animation=fadeIn&fontAlignY=36&desc=Built%20with%20Lovable%20%E2%80%A2%20Vite%20%E2%80%A2%20React%20%E2%80%A2%20TypeScript&descSize=18&descAlignY=58" width="100%" alt="Header banner" />
 
 <!-- Typing animation -->
 <a href="https://lovable.dev/projects/87a87076-2c7c-4490-87db-2bd8baf3b8e9">
